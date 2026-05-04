@@ -1,0 +1,15 @@
+# GPU requirements for RunPod deployment (Python 3.11, CUDA 12.1)
+# Licenses: all commercial-friendly
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+torch==2.3.0+cu121
+torchvision==0.18.0+cu121
+lightglue @ git+https://github.com/cvg/LightGlue.git  # Apache 2.0
+kornia>=0.7.0                                          # Apache 2.0
+pycolmap                                               # BSD-3
+trimesh                                                # MIT
+pye57                                                  # MIT
+scipy                                                  # BSD-3
+Pillow                                                 # HPND
+opencv-python-headless                                 # Apache 2.0
+numpy                                                  # BSD-3
