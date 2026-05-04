@@ -136,8 +136,7 @@ def reconstruct(reconstruction, scale_factor: float):
                     vertex_colors=colors_rgba,
                     process=True,
                 )
-                # Remove duplicate/degenerate faces
-                mesh.remove_degenerate_faces()
+                # Clean up faces
                 mesh.remove_duplicate_faces()
                 mesh.fix_normals()
 

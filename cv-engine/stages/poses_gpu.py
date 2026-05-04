@@ -334,9 +334,17 @@ def reconstruct(input_dir: str, output_dir: str):
     print("[poses_gpu] Writing features to COLMAP database...")
     _write_to_colmap_db(database_path, input_path, features, matches)
 
-    # Geometric verification (COLMAP handles this)
+    # Generate pairs.txt for geometric verification
     print("[poses_gpu] Geometric verification...")
-    pycolmap.verify_matches(database_path)
+    pairs_path = output_path / "pairs.txt"
+    with open(pairs_path, "w") as f:
+        for name_i, name_j, _ in matches:
+            f.write(f"{name_i} {name_j}\n")
+
+    pycolmap.verify_matches(
+        database_path,
+        pairs_path=pairs_path,
+    )
 
     # ------------------------------------------------------------------
     # Incremental SfM

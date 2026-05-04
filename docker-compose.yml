@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.cpu
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - ENVIRONMENT=development
+
+  cv-engine:
+    build:
+      context: ./cv-engine
+      dockerfile: Dockerfile.cpu
+    volumes:
+      - ./cv-engine:/app
+      # Mount the entire monorepo or samples directory as /data for processing
+      - .:/data
+    # No entrypoint/command, it acts as a CLI runner
+    # Invoke via: docker-compose run cv-engine python hello_world_pipeline.py /data/samples/dataset_name
+    profiles:
+      - cli_only

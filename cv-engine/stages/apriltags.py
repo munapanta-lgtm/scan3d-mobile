@@ -6,11 +6,10 @@ tag corners in 3D using COLMAP camera poses, and computes a metric scale
 factor from the known physical tag size.
 
 Key implementation notes:
-- Images are loaded with PIL.Image.open() WITHOUT ImageOps.exif_transpose()
-  because COLMAP uses raw pixel orientation.
+- GPU pipeline (DISK) may create per-image cameras at downscaled resolution.
+  Images are loaded, EXIF-transposed, and resized to match COLMAP camera
+  dimensions so 2D tag corners align with COLMAP's coordinate space.
 - img.cam_from_world() is a METHOD in pycolmap 4.x (call with parentheses).
-- COLMAP stores intrinsics in original image dimensions, so no coordinate
-  scaling is needed between detected 2D corners and COLMAP's camera model.
 - Two-pass triangulation filters outlier views by reprojection error.
 """
 
@@ -18,7 +17,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 # ---------------------------------------------------------------------------
@@ -131,11 +130,14 @@ def compute_scale(reconstruction, input_dir: str, tag_size_m: float):
     for img in images:
         img_path = input_path / img.name
 
-        # Load with PIL — raw pixel orientation (no EXIF transpose).
-        # COLMAP uses raw pixel coords; cv2.imread auto-applies EXIF
-        # in OpenCV 4.5.2+, so we avoid it.
+        # Load image, apply EXIF transpose, and resize to match COLMAP
+        # camera dimensions. The GPU pipeline (DISK) may create per-image
+        # cameras at downscaled resolution — tag detection must match.
+        camera = reconstruction.cameras[img.camera_id]
         try:
             pil_img = Image.open(str(img_path))
+            pil_img = ImageOps.exif_transpose(pil_img)
+            pil_img = pil_img.resize((camera.width, camera.height))
             cv_img = np.array(pil_img.convert("L"))
         except Exception:
             continue
@@ -147,9 +149,19 @@ def compute_scale(reconstruction, input_dir: str, tag_size_m: float):
             continue
 
         # Build projection matrix P = K @ [R | t]
-        # COLMAP stores intrinsics in original image dimensions.
-        camera = reconstruction.cameras[img.camera_id]
-        K = camera.calibration_matrix()
+        # Handle various COLMAP camera models:
+        #   SIMPLE_PINHOLE (0): params = [f, cx, cy]
+        #   PINHOLE (1):        params = [fx, fy, cx, cy]
+        #   SIMPLE_RADIAL (2):  params = [f, cx, cy, k]
+        #   RADIAL (3):         params = [f, cx, cy, k1, k2]
+        p = camera.params
+        model_id = camera.model.value if hasattr(camera.model, 'value') else camera.model_id
+        if model_id == 1:  # PINHOLE
+            fx, fy, cx, cy = p[0], p[1], p[2], p[3]
+        else:  # SIMPLE_PINHOLE, SIMPLE_RADIAL, RADIAL — all f, cx, cy
+            fx, fy, cx, cy = p[0], p[0], p[1], p[2]
+
+        K = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
 
         # pycolmap 4.x: cam_from_world() is a method
         cam_from_world = img.cam_from_world()
