@@ -13,3 +13,5 @@ scipy                                                  # BSD-3
 Pillow                                                 # HPND
 opencv-python-headless                                 # Apache 2.0
 numpy                                                  # BSD-3
+boto3                                                  # Apache 2.0 (R2 client)
+runpod                                                 # MIT (serverless SDK)

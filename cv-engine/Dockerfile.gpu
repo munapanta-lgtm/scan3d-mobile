@@ -48,8 +48,10 @@ RUN pip install --no-cache-dir -r requirements-gpu.txt
 # ---- Copy pipeline code ---------------------------------------------------
 COPY stages/ stages/
 COPY pipeline.py .
+COPY handler.py .
 
 # ---- Health check / default entry ------------------------------------------
 HEALTHCHECK --interval=30s --timeout=10s CMD python -c "import torch; assert torch.cuda.is_available()"
 
-ENTRYPOINT ["python", "pipeline.py"]
+# RunPod Serverless mode (handler.py) or CLI mode (pipeline.py)
+CMD ["python", "handler.py"]
