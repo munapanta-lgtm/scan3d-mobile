@@ -1,6 +1,8 @@
-__pycache__/ 
-*.pyc 
-*.db 
-venv/ 
-samples/ 
-output/ 
+__pycache__/
+*.pyc
+*.db
+venv/
+samples/
+output/
+.env
+backend/.env
