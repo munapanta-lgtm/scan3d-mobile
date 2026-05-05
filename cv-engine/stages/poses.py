@@ -97,6 +97,12 @@ def reconstruct(input_dir: str, output_dir: str):
     else:
         reconstruction = maps[0]
 
+    # Write the chosen reconstruction to a known path (output/sparse/)
+    # so downstream stages (dense, undistort) can find it reliably.
+    sparse_dir = output_path / "sparse"
+    sparse_dir.mkdir(parents=True, exist_ok=True)
+    reconstruction.write(sparse_dir)
+
     # Export un-scaled sparse cloud for reference
     sparse_ply_path = output_path / "sparse.ply"
     reconstruction.export_PLY(sparse_ply_path)

@@ -194,11 +194,16 @@ def _run_pycolmap_fallback(reconstruction, input_dir: str, output_dir: Path, sca
     dense_dir = output_dir / "dense"
     dense_dir.mkdir(parents=True, exist_ok=True)
 
-    # Undistort images
+    # Undistort images — COLMAP expects the sparse model under input_path/
+    # After our fix, reconstruction.write() saves to output/sparse/
     print("[dense_gpu] pycolmap: Undistorting images...")
+    sparse_model_path = output_dir / "sparse"
+    if not sparse_model_path.exists():
+        # Fallback: try output/0/ (default incremental_mapping output)
+        sparse_model_path = output_dir / "0"
     pycolmap.undistort_images(
         output_path=dense_dir,
-        input_path=output_dir,
+        input_path=sparse_model_path,
         image_path=input_dir,
     )
 
@@ -235,11 +240,10 @@ def _run_pycolmap_fallback(reconstruction, input_dir: str, output_dir: Path, sca
                 tri = Delaunay(points)
                 mesh = trimesh.Trimesh(
                     vertices=points,
-                    faces=tri.simplices[:, :3],  # use first 3 of each tetrahedron
+                    faces=tri.simplices[:, :3],
                     vertex_colors=colors,
                     process=True,
                 )
-                mesh.remove_degenerate_faces()
                 mesh.fix_normals()
             else:
                 mesh = None

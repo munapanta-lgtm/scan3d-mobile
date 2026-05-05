@@ -70,22 +70,44 @@ def _find_image_dir(extract_dir: Path) -> Path:
     """
     Find the actual image directory inside the extracted zip.
 
-    Handles both flat layout and scan_<uuid>/frames/ structure
-    from the mobile app's ZipService.
+    Handles multiple layouts:
+      - flat: extract_dir/*.jpeg
+      - frames/: extract_dir/frames/*.jpeg
+      - nested: extract_dir/scan_<uuid>/frames/*.jpeg
+      - images/: extract_dir/images/*.jpeg
     """
-    # Check for frames/ directly
-    frames = extract_dir / "frames"
-    if frames.exists():
-        return frames
+    IMG_EXTS = ("*.jpeg", "*.jpg", "*.png")
 
-    # Check one level deep (scan_<uuid>/frames/)
+    def _has_images(d: Path) -> bool:
+        return any(list(d.glob(ext)) for ext in IMG_EXTS)
+
+    # 1. Direct images in extract root
+    if _has_images(extract_dir):
+        return extract_dir
+
+    # 2. Check well-known subdirectories
+    for name in ("frames", "images"):
+        candidate = extract_dir / name
+        if candidate.exists() and _has_images(candidate):
+            return candidate
+
+    # 3. One level deep (scan_<uuid>/frames/ or scan_<uuid>/images/)
     for child in extract_dir.iterdir():
         if child.is_dir():
-            sub_frames = child / "frames"
-            if sub_frames.exists():
-                return sub_frames
+            if _has_images(child):
+                return child
+            for name in ("frames", "images"):
+                candidate = child / name
+                if candidate.exists() and _has_images(candidate):
+                    return candidate
 
-    # Fallback: use the extract dir itself
+    # 4. Last resort: recursive search for first directory with images
+    for d in extract_dir.rglob("*"):
+        if d.is_dir() and _has_images(d):
+            return d
+
+    # Fallback: return extract dir (will fail at prepare.validate)
+    print(f"[handler] WARNING: No images found in {extract_dir}")
     return extract_dir
 
 
@@ -123,7 +145,8 @@ def handler(event):
         zip_path.unlink()  # free disk space
 
         image_dir = _find_image_dir(extract_dir)
-        print(f"[handler] Image dir: {image_dir}")
+        n_images = len([f for f in image_dir.iterdir() if f.suffix.lower() in ('.jpeg', '.jpg', '.png')])
+        print(f"[handler] Image dir: {image_dir} ({n_images} images)")
 
         # ---- Import pipeline stages (GPU-aware) ----------------------------
         import torch
