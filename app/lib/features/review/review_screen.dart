@@ -4,10 +4,12 @@ library;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:mobile/core/constants.dart';
 import 'package:mobile/models/scan.dart';
 import 'package:mobile/services/storage_service.dart';
 import 'package:mobile/services/zip_service.dart';
+import 'package:mobile/services/billing_service.dart';
 import 'package:mobile/features/capture/capture_controller.dart';
 
 class ReviewScreen extends StatefulWidget {
@@ -30,6 +32,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
   final _storage = StorageService();
   final _zip = ZipService();
   bool _submitting = false;
+  String _scanType = 'basic'; // 'basic', 'premium', 'pro'
+
+  int get _cost => const {'basic': 1, 'premium': 2, 'pro': 3}[_scanType]!;
 
   CaptureController get ctrl => widget.controller;
 
@@ -219,6 +224,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ),
             const SizedBox(height: 20),
 
+            // Scan type selector
+            _buildScanTypeSelector(),
+            const SizedBox(height: 16),
+
             // Frame grid (scrollable)
             Expanded(
               child: Container(
@@ -292,30 +301,137 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   flex: 2,
-                  child: FilledButton.icon(
-                    onPressed: _submitting ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF238636),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: _submitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.save_alt),
-                    label: Text(
-                      _submitting ? 'Saving...' : 'Save & Package',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                  child: Consumer<BillingService>(
+                    builder: (_, billing, __) {
+                      final canAfford = billing.balance >= _cost;
+                      return FilledButton.icon(
+                        onPressed: _submitting
+                            ? null
+                            : canAfford
+                                ? _submit
+                                : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: canAfford
+                              ? const Color(0xFF238636)
+                              : Colors.grey[700],
+                          foregroundColor: Colors.white,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: _submitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white),
+                              )
+                            : const Icon(Icons.save_alt),
+                        label: Text(
+                          _submitting
+                              ? 'Saving...'
+                              : canAfford
+                                  ? 'Process ($_cost credit${_cost > 1 ? "s" : ""})'
+                                  : 'Insufficient credits',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScanTypeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161B22),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('SCAN TYPE',
+              style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5)),
+          const SizedBox(height: 10),
+          _scanTypeOption('basic', 'Basic', 1, 'Mesh + GLB + PLY'),
+          _scanTypeOption('premium', 'Premium', 2, '+ NeuS refinement + Splat'),
+          _scanTypeOption('pro', 'Pro', 3, '+ Primitives + E57 + IFC'),
+        ],
+      ),
+    );
+  }
+
+  Widget _scanTypeOption(String type, String label, int cost, String features) {
+    final selected = _scanType == type;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => setState(() => _scanType = type),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFF238636).withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: selected
+              ? Border.all(color: const Color(0xFF238636).withValues(alpha: 0.5))
+              : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: selected ? const Color(0xFF238636) : Colors.grey[600],
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                          fontSize: 14)),
+                  Text(features,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF21262D),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.toll, color: Color(0xFF238636), size: 14),
+                  const SizedBox(width: 4),
+                  Text('$cost',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13)),
+                ],
+              ),
             ),
           ],
         ),

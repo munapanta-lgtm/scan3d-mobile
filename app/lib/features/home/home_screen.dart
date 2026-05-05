@@ -4,10 +4,12 @@ library;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:mobile/models/scan.dart';
 import 'package:mobile/services/storage_service.dart';
+import 'package:mobile/services/billing_service.dart';
 import 'package:mobile/features/capture/capture_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -166,6 +168,29 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFF161B22),
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          // Credit balance chip
+          Consumer<BillingService>(
+            builder: (_, billing, __) => Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Chip(
+                avatar: const Icon(Icons.toll, color: Color(0xFF238636), size: 18),
+                label: Text(
+                  billing.loading ? '...' : '${billing.balance}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                backgroundColor: const Color(0xFF21262D),
+                side: BorderSide.none,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
