@@ -66,6 +66,19 @@ def _get_s3_client():
     )
 
 
+def _sanitize_for_json(obj):
+    """Convert numpy types to native Python types for JSON serialization."""
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(item) for item in obj]
+    elif hasattr(obj, 'item'):  # numpy scalar (bool_, int64, float64, etc.)
+        return obj.item()
+    elif hasattr(obj, 'tolist'):  # numpy array
+        return obj.tolist()
+    return obj
+
+
 def _find_image_dir(extract_dir: Path) -> Path:
     """
     Find the actual image directory inside the extracted zip.
@@ -221,23 +234,24 @@ def handler(event):
         print(f"[handler]   Export:   {t_export - t_dense:.1f}s")
         print(f"[handler]   Upload:   {t_upload - t_export:.1f}s")
 
-        return {
+        return _sanitize_for_json({
             "status": "ok",
             "scan_id": scan_id,
             "files": result_files,
             "metrics": metrics,
             "timing_s": round(t_total, 1),
-        }
+        })
 
     except Exception as e:
         print(f"[handler] ERROR: {e}")
         import traceback
         traceback.print_exc()
-        return {
+        return _sanitize_for_json({
             "status": "error",
             "scan_id": scan_id,
             "message": str(e),
-        }
+            "traceback": traceback.format_exc(),
+        })
 
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)
