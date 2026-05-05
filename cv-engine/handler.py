@@ -22,6 +22,37 @@ import boto3
 import runpod
 from botocore.config import Config as BotoConfig
 
+# --- Early dependency validation ---
+# Catch numpy/torch compatibility issues before entering the handler loop.
+# RunPod base image has PyTorch 2.2 which requires numpy<2.
+import sys
+print(f"[boot] Python {sys.version}")
+try:
+    import numpy as np
+    print(f"[boot] numpy {np.__version__}")
+except Exception as e:
+    print(f"[boot] FATAL: numpy import failed: {e}")
+    sys.exit(1)
+try:
+    import torch
+    print(f"[boot] torch {torch.__version__}, CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"[boot] GPU: {torch.cuda.get_device_name(0)}")
+except Exception as e:
+    print(f"[boot] FATAL: torch import failed: {e}")
+    sys.exit(1)
+try:
+    import cv2
+    print(f"[boot] opencv {cv2.__version__}")
+except Exception as e:
+    print(f"[boot] WARN: opencv import failed: {e}")
+try:
+    import pycolmap
+    print(f"[boot] pycolmap OK")
+except Exception as e:
+    print(f"[boot] WARN: pycolmap import failed: {e}")
+print("[boot] All core dependencies loaded successfully")
+
 
 def _get_s3_client():
     """Create S3 client for Cloudflare R2."""

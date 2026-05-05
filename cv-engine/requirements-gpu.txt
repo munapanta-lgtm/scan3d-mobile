@@ -1,4 +1,6 @@
 # GPU requirements (base image already has torch + torchvision + CUDA)
+# IMPORTANT: numpy<2 required — PyTorch 2.2 is not compatible with numpy 2.x
+numpy<2                                                # BSD-3 (pinned for PyTorch 2.2 compat)
 lightglue @ git+https://github.com/cvg/LightGlue.git  # Apache 2.0
 kornia>=0.7.0                                          # Apache 2.0
 pycolmap                                               # BSD-3
@@ -7,6 +9,5 @@ pye57                                                  # MIT
 scipy                                                  # BSD-3
 Pillow                                                 # HPND
 opencv-python-headless                                 # Apache 2.0
-numpy                                                  # BSD-3
 boto3                                                  # Apache 2.0 (R2 client)
 runpod                                                 # MIT (serverless SDK)
