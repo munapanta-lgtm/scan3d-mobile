@@ -266,8 +266,9 @@ def reconstruct(reconstruction, scale_factor: float, input_dir: str = "", output
     """
     GPU-accelerated dense reconstruction.
 
-    Tries AliceVision first (full textured mesh), falls back to
-    pycolmap PatchMatch stereo if AliceVision is not installed.
+    Tries AliceVision first (full textured mesh).
+    Falls back to CPU Delaunay mesh from sparse points if AliceVision
+    is not installed (pycolmap PatchMatch requires additional setup).
 
     Parameters
     ----------
@@ -297,8 +298,9 @@ def reconstruct(reconstruction, scale_factor: float, input_dir: str = "", output
             pcd.vertices *= scale_factor
 
         return mesh, pcd
-    else:
-        print("[dense_gpu] AliceVision not found — using pycolmap PatchMatch fallback")
-        return _run_pycolmap_fallback(
-            reconstruction, input_dir, output_path, scale_factor
-        )
+
+    # Fallback: reuse CPU dense.py (Delaunay mesh from sparse points).
+    # This works reliably without AliceVision or PatchMatch stereo setup.
+    print("[dense_gpu] AliceVision not found — using sparse Delaunay fallback")
+    from stages.dense import reconstruct as cpu_reconstruct
+    return cpu_reconstruct(reconstruction, scale_factor)
